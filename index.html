@@ -28,9 +28,9 @@
         var placar; 
         var pontuacao = 0; 
         var plataforma;
-        var moeda;
+        var moedas = []; // Lista para armazenar as moedas
 
-        // configs principais do jogo
+        // Configurações principais do jogo
         const config = {
             type: Phaser.AUTO,
             width: larguraJogo,
@@ -38,8 +38,8 @@
             physics: {
                 default: 'arcade',
                 arcade: {
-                    gravity: { y: 300 }, // gravidade para dar realismo ao jogo
-                    debug: true // vai mostrar aquela seta que aponta a direção
+                    gravity: { y: 300 }, // Gravidade para dar realismo ao jogo
+                    debug: true // Vai mostrar aquela seta que aponta a direção
                 }
             },
             scene: {
@@ -52,7 +52,6 @@
         const game = new Phaser.Game(config);
 
         function preload() {
-            
             this.load.image('background', '../assets/bg.png');
             this.load.image('player', '../assets/alienigena.png');
             this.load.image('fogo', '../assets/turbo.png');
@@ -61,45 +60,69 @@
         }
 
         function create() {
-            this.add.image(larguraJogo / 2, alturaJogo / 2, 'background'); // o background do jogo
+            this.add.image(larguraJogo / 2, alturaJogo / 2, 'background'); // O background do jogo
             
-            fogo = this.add.sprite(0, 0, 'fogo'); // aqui no caso, estou criando a animação do turbo
+            fogo = this.add.sprite(0, 0, 'fogo'); // Criando a animação do turbo
             fogo.setVisible(false); // O turbo começa invisível
 
-            alien = this.physics.add.sprite(larguraJogo / 2, 0, 'player'); // criando o et
-            alien.setCollideWorldBounds(true); // limitar a tela
+            alien = this.physics.add.sprite(larguraJogo / 2, 0, 'player'); // Criando o ET
+            alien.setCollideWorldBounds(true); // Limitar a tela
 
             plataforma = this.physics.add.staticImage(larguraJogo / 2, alturaJogo / 2, 'plataforma_tijolo'); // Criando a plataforma
-            this.physics.add.collider(alien, plataforma); // faz o alien colidir com a plataforma
+            this.physics.add.collider(alien, plataforma); // Faz o alien colidir com a plataforma
 
+            plataformaExtra = this.physics.add.staticImage(100, 200, 'plataforma_tijolo'); // Criando uma plataforma extra
+            this.physics.add.collider(alien, plataformaExtra); // Faz o alien colidir com essa plataforma
 
-            plataformaExtra = this.physics.add.staticImage(100, 200, 'plataforma_tijolo'); // Criando a plataforma
-            this.physics.add.collider(alien, plataformaExtra); // faz o alien colidir com a plataforma
-
-            moeda = this.physics.add.sprite(larguraJogo / 2, 0, 'moeda'); // Criando a moeda
-            moeda.setCollideWorldBounds(true); // limitando a moeda para q ela não saia da tela
-            moeda.setBounce(0.7); // fazendo a moeda quicar um pouco
-            this.physics.add.collider(moeda, plataforma);
-            this.physics.add.collider(moeda, plataformaExtra);
+            // Criando várias moedas
+            for (let i = 0; i < 5; i++) { // Criando 5 moedas
+                let moeda = this.physics.add.sprite(Phaser.Math.Between(50, larguraJogo - 50), Phaser.Math.Between(50, alturaJogo - 200), 'moeda');
+                moeda.setCollideWorldBounds(true);
+                moeda.setBounce(0.7);
+                this.physics.add.collider(moeda, plataforma);
+                this.physics.add.collider(moeda, plataformaExtra);
+                moedas.push(moeda); // Adicionando a moeda à lista
+            }
 
             placar = this.add.text(50, 50, 'Moedas: ' + pontuacao, { fontSize: '45px', fill: '#495613' }); // Criando o placar
 
-            this.physics.add.overlap(alien, moeda, coletarMoeda, null, this); // ele vai fazer check quando o alien toca na moeda
-            teclado = this.input.keyboard.createCursorKeys(); // para ter a movimentação pelo teclado
+            // Verificando colisão com todas as moedas
+            moedas.forEach(moeda => {
+                this.physics.add.overlap(alien, moeda, coletarMoeda, null, this);
+            });
+
+            teclado = this.input.keyboard.createCursorKeys(); // Para ter a movimentação pelo teclado
         }
 
+        function coletarMoeda(alien, moeda) {
+    moeda.disableBody(true, true); // Desativa fisicamente a moeda e a esconde
+
+    // Gera uma nova posição aleatória
+    var posicaoMoeda_X = Phaser.Math.Between(50, larguraJogo - 50);
+    var posicaoMoeda_Y = Phaser.Math.Between(50, alturaJogo - 200);
+
+    // Aguarda um curto tempo e reposiciona a moeda
+    setTimeout(() => {
+        moeda.enableBody(true, posicaoMoeda_X, posicaoMoeda_Y, true, true);
+    }, 500); // Pequeno atraso para não parecer instantâneo
+
+    pontuacao += 1; // Adiciona 1 ponto
+    placar.setText('Moedas: ' + pontuacao); // Atualiza o placar
+}
+        
+
         function update() {
-            // movimentação do alien
+            // Movimentação do alien
             if (teclado.left.isDown) {
-                alien.setVelocityX(-150); // ir para esquerda
+                alien.setVelocityX(-150); // Ir para esquerda
             } else if (teclado.right.isDown) {
-                alien.setVelocityX(150); // ir para direita
+                alien.setVelocityX(150); // Ir para direita
             } else {
-                alien.setVelocityX(0); // para quando nenhuma tecla é pressionada
+                alien.setVelocityX(0); // Para quando nenhuma tecla é pressionada
             }
 
             if (teclado.up.isDown) {
-                alien.setVelocityY(-150); // ir para cima
+                alien.setVelocityY(-150); // Ir para cima
                 ativarTurbo(); // Ativa o efeito do turbo
             } else {
                 semTurbo(); // Desativa o turbo
@@ -114,16 +137,6 @@
 
         function semTurbo() {
             fogo.setVisible(false); // Esconde o turbo
-        }
-
-        function coletarMoeda() {
-            moeda.setVisible(false); // Esconde a moeda ao ser coletada
-            var posicaoMoeda_X = Phaser.Math.Between(50, larguraJogo - 50); // vai gerar uma nova posição X aleatória
-            var posicaoMoeda_Y = Phaser.Math.Between(50, alturaJogo - 200); // vai gerar uma nova posição Y aleatória
-            moeda.setPosition(posicaoMoeda_X, posicaoMoeda_Y);
-            pontuacao += 1; // Adiciona 1 ponto a +
-            placar.setText('Moedas: ' + pontuacao); // atualizar o placar
-            moeda.setVisible(true); // deixa a moeda visível novamente
         }
     </script>
 </body>
